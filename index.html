@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="es-AR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Máquinas Virtuales (IaaS) — Equipo N°1</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --panel: #161b22;
+    --ink: #e6edf3;
+    --dim: #8b949e;
+    --line: #30363d;
+    --accent: #58a6ff;
+    --aws: #ff9900;
+    --gcp: #4285f4;
+    --azure: #0078d4;
+    --oracle: #f80000;
+    --ok: #3fb950;
+    --warn: #f0883e;
+    --int1: #4a90e2;
+    --int2: #3faa6b;
+    --int3: #ec8531;
+    --int4: #8a7ce0;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    height: 100%;
+    color: var(--ink);
+    font-family: 'Segoe UI', 'Inter', system-ui, sans-serif;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
+    background:
+      radial-gradient(ellipse 80% 50% at 20% 15%, rgba(120, 180, 255, 0.32), transparent 60%),
+      radial-gradient(ellipse 70% 60% at 85% 30%, rgba(140, 190, 255, 0.26), transparent 65%),
+      radial-gradient(ellipse 90% 55% at 50% 95%, rgba(100, 160, 230, 0.24), transparent 60%),
+      linear-gradient(180deg, #1c3160 0%, #1e2f52 50%, #172745 100%);
+    background-attachment: fixed;
+  }
+  .waves {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 900' preserveAspectRatio='none'><path d='M0,520 C240,600 480,420 720,480 C960,540 1200,400 1440,460 L1440,900 L0,900 Z' fill='%23a8c8ff' fill-opacity='0.09'/><path d='M0,620 C300,680 600,540 900,600 C1140,650 1320,560 1440,600 L1440,900 L0,900 Z' fill='%237db3ff' fill-opacity='0.08'/><path d='M0,720 C360,760 720,660 1080,720 C1260,750 1380,700 1440,720 L1440,900 L0,900 Z' fill='%235a9dff' fill-opacity='0.07'/></svg>");
+    background-size: cover;
+    background-position: bottom;
+    background-repeat: no-repeat;
+  }
+  .deck {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    z-index: 1;
+  }
+  .slide {
+    position: absolute;
+    inset: 0;
+    padding: 4vh 6vw;
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    overflow-y: auto;
+  }
+  .slide.active { display: flex; }
+
+  /* Barra superior */
+  .topbar {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 24px;
+    background: rgba(13,17,23,0.85);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--line);
+    font-size: 12px;
+    color: var(--dim);
+    z-index: 10;
+    letter-spacing: 0.5px;
+  }
+  .topbar b { color: var(--ink); font-weight: 600; }
+
+  /* Barra de progreso */
+  .progress {
+    position: fixed;
+    top: 0; left: 0;
+    height: 3px;
+    background: var(--accent);
+    transition: width 0.3s ease;
+    z-index: 10;
+  }
+
+  /* Navegación */
+  .nav {
+    position: fixed;
+    bottom: 20px; right: 24px;
+    display: flex;
+    gap: 8px;
+    z-index: 10;
+  }
+  .nav button {
+    background: var(--panel);
+    color: var(--ink);
+    border: 1px solid var(--line);
+    padding: 8px 14px;
+    font-size: 13px;
+    cursor: pointer;
+    border-radius: 4px;
+    font-family: inherit;
+  }
+  .nav button:hover { border-color: var(--accent); color: var(--accent); }
+  .counter {
+    position: fixed;
+    bottom: 26px; left: 24px;
+    font-size: 13px;
+    color: var(--dim);
+    z-index: 10;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Chip de integrante (fijo, se actualiza por JS) */
+  .int-chip {
+    position: fixed;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 5px 14px;
+    border-radius: 14px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    z-index: 11;
+    color: #fff;
+    background: var(--int1);
+    transition: background 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  }
+  .int-chip.int-1 { background: var(--int1); }
+  .int-chip.int-2 { background: var(--int2); }
+  .int-chip.int-3 { background: var(--int3); }
+  .int-chip.int-4 { background: var(--int4); }
+
+  /* Barra de progreso coloreada por integrante */
+  .progress.int-1 { background: var(--int1); }
+  .progress.int-2 { background: var(--int2); }
+  .progress.int-3 { background: var(--int3); }
+  .progress.int-4 { background: var(--int4); }
+
+  /* Contenido */
+  h1 {
+    font-size: clamp(38px, 4.6vw, 64px);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.05;
+    margin-bottom: 20px;
+  }
+  h2 {
+    font-size: clamp(28px, 2.8vw, 40px);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    margin-bottom: 24px;
+    color: var(--ink);
+  }
+  h2 .eyebrow {
+    display: block;
+    font-size: 14px;
+    color: var(--accent);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    font-weight: 500;
+  }
+  h3 { font-size: 20px; margin-bottom: 10px; font-weight: 600; }
+  p, li {
+    font-size: clamp(17px, 1.3vw, 21px);
+    line-height: 1.6;
+    color: var(--ink);
+  }
+  li { margin-bottom: 10px; }
+  ul { padding-left: 24px; }
+  strong { color: var(--accent); font-weight: 600; }
+
+  /* Portada */
+  .cover {
+    justify-content: center;
+    align-items: flex-start;
+  }
+  .cover .badge {
+    font-size: 12px;
+    color: var(--dim);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-bottom: 20px;
+  }
+  .cover h1 {
+    font-size: clamp(48px, 7vw, 96px);
+    margin-bottom: 30px;
+  }
+  .cover .subtitle {
+    font-size: clamp(18px, 1.6vw, 24px);
+    color: var(--dim);
+    margin-bottom: 40px;
+    max-width: 800px;
+  }
+  .cover .meta {
+    display: flex;
+    gap: 40px;
+    font-size: 14px;
+    color: var(--dim);
+    padding-top: 30px;
+    border-top: 1px solid var(--line);
+    max-width: 900px;
+    flex-wrap: wrap;
+  }
+  .cover .meta b { color: var(--ink); font-weight: 600; }
+  .accent-bar {
+    display: inline-block;
+    width: 60px;
+    height: 4px;
+    background: var(--accent);
+    margin-bottom: 24px;
+  }
+
+  /* Grids */
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 40px;
+    margin-top: 20px;
+  }
+  .grid-4 {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+    margin-top: 20px;
+  }
+  @media (max-width: 900px) {
+    .grid-2, .grid-4 { grid-template-columns: 1fr; }
+  }
+
+  /* Tarjetas */
+  .card {
+    background: rgba(22, 27, 34, 0.75);
+    backdrop-filter: blur(6px);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 24px;
+  }
+  .card h3 { margin-bottom: 14px; }
+  .card.aws { border-top: 3px solid var(--aws); }
+  .card.gcp { border-top: 3px solid var(--gcp); }
+  .card.azure { border-top: 3px solid var(--azure); }
+  .card.oracle { border-top: 3px solid var(--oracle); }
+  .card .logo {
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 2px;
+    margin-bottom: 12px;
+  }
+  .card.aws .logo { color: var(--aws); }
+  .card.gcp .logo { color: var(--gcp); }
+  .card.azure .logo { color: var(--azure); }
+  .card.oracle .logo { color: var(--oracle); }
+  .card .metric {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--ink);
+    margin-bottom: 6px;
+    font-variant-numeric: tabular-nums;
+  }
+  .card .label {
+    font-size: 12px;
+    color: var(--dim);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  /* Tabla */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+    font-size: 17px;
+  }
+  th, td {
+    text-align: left;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--line);
+  }
+  th {
+    color: var(--dim);
+    font-weight: 500;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    background: rgba(22, 27, 34, 0.7);
+  }
+  td { color: var(--ink); }
+  td.num { font-variant-numeric: tabular-nums; text-align: right; }
+  tr:hover td { background: rgba(88,166,255,0.04); }
+
+  /* Tags */
+  .tag {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    margin-right: 6px;
+  }
+  .tag.ok { background: rgba(63,185,80,0.15); color: var(--ok); }
+  .tag.warn { background: rgba(240,136,62,0.15); color: var(--warn); }
+  .tag.info { background: rgba(88,166,255,0.15); color: var(--accent); }
+
+  /* Bloque código / terminal */
+  pre {
+    background: rgba(1, 4, 9, 0.85);
+    backdrop-filter: blur(6px);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 20px;
+    font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
+    font-size: 16px;
+    color: #c9d1d9;
+    overflow-x: auto;
+    line-height: 1.6;
+    margin-top: 16px;
+  }
+  pre .cmt { color: #8b949e; }
+  pre .cmd { color: #79c0ff; }
+  pre .str { color: #a5d6ff; }
+
+  /* Layout de dos columnas */
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 40px;
+    margin-top: 20px;
+  }
+  .two-col .col h3 {
+    color: var(--accent);
+    margin-bottom: 14px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--line);
+  }
+  .two-col.pro-con .pro h3 { color: var(--ok); }
+  .two-col.pro-con .con h3 { color: var(--warn); }
+
+  /* Diagrama simple */
+  .diagram {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin: 30px 0;
+    flex-wrap: wrap;
+  }
+  .diagram .box {
+    background: rgba(22, 27, 34, 0.75);
+    backdrop-filter: blur(6px);
+    border: 1px solid var(--line);
+    padding: 14px 18px;
+    border-radius: 6px;
+    text-align: center;
+    min-width: 130px;
+  }
+  .diagram .box .t { font-size: 12px; color: var(--dim); text-transform: uppercase; letter-spacing: 1px; }
+  .diagram .box .n { font-size: 15px; font-weight: 600; margin-top: 4px; }
+  .diagram .arrow { color: var(--accent); font-size: 20px; }
+
+  /* Cierre */
+  .final {
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+  }
+  .final h1 { font-size: clamp(56px, 8vw, 120px); }
+  .final p { color: var(--dim); font-size: 20px; margin-top: 20px; }
+
+  .key-quote {
+    font-size: clamp(22px, 2.2vw, 32px);
+    line-height: 1.4;
+    max-width: 900px;
+    color: var(--ink);
+    padding-left: 24px;
+    border-left: 3px solid var(--accent);
+    margin: 20px 0;
+  }
+</style>
+</head>
+<body>
+
+<div class="waves"></div>
+
+<div class="progress int-1" id="progress"></div>
+
+<div class="deck" id="deck">
+
+  <!-- 1. Portada -->
+  <section class="slide cover active">
+    <span class="badge">Investigación · Servicios en la Nube</span>
+    <div class="accent-bar"></div>
+    <h1>Máquinas Virtuales<br>como Servicio</h1>
+    <p class="subtitle">Comparativa de proveedores IaaS y montaje de un servidor web desde cero.</p>
+    <div class="meta">
+      <span><b>Equipo N°1</b> · Aloia Mircovich Agustín · Aloia Touzon Morella · Cosimi Tomás · Dellepiane Felipe</span>
+      <span><b>Prof.</b> Ing. Maximiliano G. Ariza</span>
+      <span><b>ILM</b> · 2026</span>
+    </div>
+  </section>
+
+  <!-- 2. Agenda -->
+  <section class="slide">
+    <h2><span class="eyebrow">01 · Agenda</span>Qué vamos a ver</h2>
+    <ul>
+      <li>Conceptos base: virtualización, máquina virtual e hypervisor.</li>
+      <li>Definición del modelo <strong>IaaS</strong> y su lugar dentro de los servicios en la nube.</li>
+      <li>Cuatro proveedores del mercado analizados: <strong>AWS EC2</strong>, <strong>Google Compute Engine</strong>, <strong>Azure Virtual Machines</strong> y <strong>Oracle Cloud Infrastructure</strong>.</li>
+      <li>Modelos de facturación: bajo demanda, instancias reservadas y descuentos por uso comprometido.</li>
+      <li>Comparativa de capas gratuitas para uso educativo.</li>
+      <li>Caso práctico: despliegue de un servidor web con Ubuntu y Nginx.</li>
+      <li>Análisis comparativo, ventajas y limitaciones.</li>
+    </ul>
+  </section>
+
+  <!-- 3. Qué es virtualización -->
+  <section class="slide">
+    <h2><span class="eyebrow">02 · Base conceptual</span>De hardware físico a máquina virtual</h2>
+    <p>La virtualización permite compartir el hardware de un servidor físico entre varios sistemas operativos aislados, mediante una capa de software llamada <strong>hypervisor</strong> que reparte CPU, memoria, red y disco entre las máquinas virtuales.</p>
+    <svg viewBox="0 0 900 260" style="width: 100%; max-width: 900px; margin: 24px auto 0; display: block;" xmlns="http://www.w3.org/2000/svg">
+      <!-- ANTES -->
+      <text x="100" y="20" fill="#8b949e" font-size="11" font-family="Segoe UI" letter-spacing="1.5" text-anchor="middle">ANTES DE LA VIRTUALIZACIÓN</text>
+      <rect x="30" y="40" width="140" height="30" fill="#161b22" stroke="#30363d" rx="3"/>
+      <text x="100" y="60" fill="#e6edf3" font-size="12" font-family="Segoe UI" text-anchor="middle">Aplicación</text>
+      <rect x="30" y="75" width="140" height="30" fill="#161b22" stroke="#30363d" rx="3"/>
+      <text x="100" y="95" fill="#e6edf3" font-size="12" font-family="Segoe UI" text-anchor="middle">Sistema operativo</text>
+      <rect x="30" y="110" width="140" height="30" fill="#1f3a68" stroke="#58a6ff" rx="3"/>
+      <text x="100" y="130" fill="#58a6ff" font-size="12" font-family="Segoe UI" font-weight="600" text-anchor="middle">Hardware x86</text>
+      <text x="100" y="170" fill="#8b949e" font-size="11" font-family="Segoe UI" text-anchor="middle">1 servidor = 1 SO</text>
+      <text x="100" y="188" fill="#8b949e" font-size="11" font-family="Segoe UI" text-anchor="middle">Recursos infrautilizados</text>
+
+      <!-- Flecha -->
+      <text x="270" y="95" fill="#58a6ff" font-size="30" text-anchor="middle">→</text>
+
+      <!-- DESPUÉS -->
+      <text x="550" y="20" fill="#8b949e" font-size="11" font-family="Segoe UI" letter-spacing="1.5" text-anchor="middle">DESPUÉS DE LA VIRTUALIZACIÓN</text>
+
+      <!-- VM 1 -->
+      <rect x="330" y="40" width="90" height="24" fill="#161b22" stroke="#30363d" rx="3"/>
+      <text x="375" y="57" fill="#e6edf3" font-size="10" font-family="Segoe UI" text-anchor="middle">App · Linux</text>
+      <!-- VM 2 -->
+      <rect x="430" y="40" width="90" height="24" fill="#161b22" stroke="#30363d" rx="3"/>
+      <text x="475" y="57" fill="#e6edf3" font-size="10" font-family="Segoe UI" text-anchor="middle">App · Windows</text>
+      <!-- VM 3 -->
+      <rect x="530" y="40" width="90" height="24" fill="#161b22" stroke="#30363d" rx="3"/>
+      <text x="575" y="57" fill="#e6edf3" font-size="10" font-family="Segoe UI" text-anchor="middle">App · Linux</text>
+      <!-- VM 4 -->
+      <rect x="630" y="40" width="90" height="24" fill="#161b22" stroke="#30363d" rx="3"/>
+      <text x="675" y="57" fill="#e6edf3" font-size="10" font-family="Segoe UI" text-anchor="middle">App · BSD</text>
+      <!-- + más -->
+      <text x="740" y="57" fill="#8b949e" font-size="12" font-family="Segoe UI">···</text>
+
+      <!-- Hypervisor -->
+      <rect x="330" y="75" width="440" height="30" fill="#1c2b45" stroke="#58a6ff" stroke-width="1.5" rx="3"/>
+      <text x="550" y="95" fill="#58a6ff" font-size="13" font-family="Segoe UI" font-weight="600" text-anchor="middle">HYPERVISOR (ESXi, KVM, Hyper-V, Xen)</text>
+
+      <!-- Hardware -->
+      <rect x="330" y="110" width="440" height="30" fill="#1f3a68" stroke="#58a6ff" rx="3"/>
+      <text x="550" y="130" fill="#58a6ff" font-size="12" font-family="Segoe UI" font-weight="600" text-anchor="middle">Hardware x86 · CPU · RAM · Disco · Red</text>
+
+      <text x="550" y="170" fill="#8b949e" font-size="11" font-family="Segoe UI" text-anchor="middle">1 servidor = N máquinas virtuales aisladas</text>
+      <text x="550" y="188" fill="#3fb950" font-size="11" font-family="Segoe UI" text-anchor="middle" font-weight="600">Uso de recursos: hasta 90 %</text>
+    </svg>
+    <p style="margin-top: 14px; text-align: center; font-size: 14px; color: var(--dim);">
+      Al servidor físico se lo llama <em style="color:var(--ink);">host</em>; a cada máquina virtual, <em style="color:var(--ink);">guest</em>.
+    </p>
+  </section>
+
+  <!-- 4. Qué es IaaS -->
+  <section class="slide">
+    <h2><span class="eyebrow">03 · Modelo de nube</span>IaaS: infraestructura como servicio</h2>
+    <div class="grid-2">
+      <div>
+        <p>El modelo <strong>IaaS</strong> (Infrastructure as a Service) consiste en que el proveedor cloud entrega la infraestructura virtualizada (máquinas virtuales, almacenamiento y red) como un servicio bajo demanda. El cliente conserva la responsabilidad del sistema operativo, el middleware, las aplicaciones y los datos.</p>
+        <p style="margin-top:16px;">La facturación se realiza por consumo real, medido por segundo u hora, sin inversión inicial en hardware ni compromisos de largo plazo obligatorios.</p>
+      </div>
+      <div class="card">
+        <h3>Modelos de servicio en la nube</h3>
+        <p style="font-size:14px;"><strong>IaaS</strong> — Máquinas virtuales, discos, redes.<br><span style="color:var(--dim);">Ejemplos: EC2, GCE, Azure VMs, OCI Compute.</span></p>
+        <p style="font-size:14px; margin-top:10px;"><strong>PaaS</strong> — Plataforma de ejecución administrada.<br><span style="color:var(--dim);">Ejemplos: App Engine, Elastic Beanstalk.</span></p>
+        <p style="font-size:14px; margin-top:10px;"><strong>SaaS</strong> — Aplicación lista para el usuario final.<br><span style="color:var(--dim);">Ejemplos: Gmail, Salesforce.</span></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. Cuatro proveedores overview -->
+  <section class="slide">
+    <h2><span class="eyebrow">04 · Panorama</span>Los cuatro proveedores del mercado</h2>
+    <div style="margin-top: 10px;">
+      <svg viewBox="0 0 800 220" style="width: 100%; max-width: 900px; margin: 0 auto; display: block;" xmlns="http://www.w3.org/2000/svg">
+        <text x="0" y="16" fill="#8b949e" font-size="11" font-family="Segoe UI, sans-serif" letter-spacing="1.5">CUOTA DE MERCADO GLOBAL EN IaaS · 2025</text>
+
+        <!-- AWS -->
+        <text x="0" y="52" fill="#e6edf3" font-size="14" font-family="Segoe UI, sans-serif" font-weight="600">AWS EC2</text>
+        <rect x="120" y="40" width="320" height="16" fill="#ff9900" opacity="0.9" rx="2"/>
+        <text x="450" y="53" fill="#ff9900" font-size="13" font-family="Segoe UI, sans-serif" font-weight="700">32 %</text>
+
+        <!-- Azure -->
+        <text x="0" y="92" fill="#e6edf3" font-size="14" font-family="Segoe UI, sans-serif" font-weight="600">Azure VMs</text>
+        <rect x="120" y="80" width="230" height="16" fill="#0078d4" opacity="0.9" rx="2"/>
+        <text x="360" y="93" fill="#0078d4" font-size="13" font-family="Segoe UI, sans-serif" font-weight="700">23 %</text>
+
+        <!-- GCP -->
+        <text x="0" y="132" fill="#e6edf3" font-size="14" font-family="Segoe UI, sans-serif" font-weight="600">Google GCE</text>
+        <rect x="120" y="120" width="120" height="16" fill="#4285f4" opacity="0.9" rx="2"/>
+        <text x="250" y="133" fill="#4285f4" font-size="13" font-family="Segoe UI, sans-serif" font-weight="700">12 %</text>
+
+        <!-- Oracle -->
+        <text x="0" y="172" fill="#e6edf3" font-size="14" font-family="Segoe UI, sans-serif" font-weight="600">Oracle OCI</text>
+        <rect x="120" y="160" width="30" height="16" fill="#f80000" opacity="0.9" rx="2"/>
+        <text x="160" y="173" fill="#f80000" font-size="13" font-family="Segoe UI, sans-serif" font-weight="700">3 %</text>
+
+        <!-- Otros -->
+        <text x="0" y="212" fill="#8b949e" font-size="13" font-family="Segoe UI, sans-serif">Otros (IBM, Alibaba, DigitalOcean...)</text>
+        <rect x="260" y="200" width="300" height="16" fill="#30363d" opacity="0.8" rx="2"/>
+        <text x="570" y="213" fill="#8b949e" font-size="13" font-family="Segoe UI, sans-serif" font-weight="700">30 %</text>
+      </svg>
+    </div>
+    <p style="margin-top: 24px; font-size: 15px; text-align: center; color: var(--dim); max-width: 900px; margin-left: auto; margin-right: auto;">
+      Los cuatro proveedores concentran el <strong style="color: var(--ink);">70 %</strong> del mercado global de IaaS. Comparten el mismo núcleo funcional; las diferencias reales están en <strong style="color: var(--ink);">costo</strong>, <strong style="color: var(--ink);">ecosistema</strong> y <strong style="color: var(--ink);">capa gratuita</strong>.
+    </p>
+  </section>
+
+  <!-- 6. Modelos de precios -->
+  <section class="slide">
+    <h2><span class="eyebrow">05 · Modelos de precios</span>Pago por uso vs. instancias reservadas</h2>
+    <div class="two-col">
+      <div class="col">
+        <h3>Pago por uso (On-Demand)</h3>
+        <p>Se factura por segundo o por hora, sin compromiso previo. Ideal para pruebas, picos o cargas impredecibles.</p>
+        <p style="margin-top:12px; color: var(--dim); font-size:14px;">Ejemplo: t3.micro en AWS us-east-1 = <strong style="color:var(--ink);">USD 0,0104/h</strong> (~USD 7,59/mes 24/7).</p>
+      </div>
+      <div class="col">
+        <h3>Instancias reservadas / Committed Use</h3>
+        <p>Compromiso de 1 o 3 años a cambio de descuentos que van del <strong>37%</strong> al <strong>72%</strong>. Se paga menos por hora pero hay que asegurar el consumo.</p>
+        <p style="margin-top:12px; color: var(--dim); font-size:14px;">Modalidades: sin pago inicial, pago parcial o pago total por adelantado (la más barata).</p>
+      </div>
+    </div>
+    <p style="margin-top:30px;">También existen las <strong>Spot Instances</strong> (AWS) y <strong>Preemptible VMs</strong> (GCP): descuentos de hasta el 90% a cambio de que el proveedor pueda apagar la VM con pocos minutos de aviso. Sirven para procesamiento batch tolerante a fallos.</p>
+  </section>
+
+  <!-- 7. Tabla comparativa precios -->
+  <section class="slide">
+    <h2><span class="eyebrow">06 · Comparativa · Datos 2026</span>Precio de una VM equivalente 24/7</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Proveedor</th>
+          <th>Instancia</th>
+          <th>vCPU / RAM</th>
+          <th class="num">USD / mes bajo demanda</th>
+          <th class="num">USD / mes reservado 1 año</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong style="color:var(--aws);">AWS EC2</strong></td>
+          <td>t3.micro (us-east-1)</td>
+          <td>1 vCPU · 1 GB</td>
+          <td class="num">USD 7,59</td>
+          <td class="num">~USD 4,80</td>
+        </tr>
+        <tr>
+          <td><strong style="color:var(--gcp);">Google GCE</strong></td>
+          <td>e2-micro (us-central1)</td>
+          <td>2 vCPU · 1 GB</td>
+          <td class="num">USD 6,11</td>
+          <td class="num">~USD 3,80</td>
+        </tr>
+        <tr>
+          <td><strong style="color:var(--azure);">Azure VMs</strong></td>
+          <td>B1s (East US)</td>
+          <td>1 vCPU · 1 GB</td>
+          <td class="num">USD 7,59</td>
+          <td class="num">~USD 4,90</td>
+        </tr>
+        <tr>
+          <td><strong style="color:var(--oracle);">Oracle OCI</strong></td>
+          <td>VM.Standard.E5.Flex (1/1)</td>
+          <td>1 vCPU · 1 GB</td>
+          <td class="num">USD 5,84</td>
+          <td class="num">~USD 3,90</td>
+        </tr>
+      </tbody>
+    </table>
+    <p style="margin-top:20px; padding: 14px 18px; background: rgba(88,166,255,0.08); border-left: 3px solid var(--accent); font-size: 14px;">
+      <strong>Nota metodológica:</strong> se comparan instancias pagas equivalentes de 1 vCPU / 1 GB en la región más económica de cada proveedor. La capa gratuita de cada uno se analiza por separado en el próximo slide, para no mezclar categorías.
+    </p>
+  </section>
+
+  <!-- 8. Free tiers -->
+  <section class="slide">
+    <h2><span class="eyebrow">07 · Capas gratuitas</span>Free tiers para estudiantes</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Proveedor</th>
+          <th>Qué incluye</th>
+          <th>Duración</th>
+          <th>Crédito adicional</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong style="color:var(--aws);">AWS</strong></td>
+          <td>750 h/mes de t3.micro + 30 GB EBS <span class="tag warn">cuentas viejas</span></td>
+          <td>12 meses</td>
+          <td>USD 200 en 6 meses (cuentas nuevas post-jul/2025)</td>
+        </tr>
+        <tr>
+          <td><strong style="color:var(--gcp);">GCP</strong></td>
+          <td>1 e2-micro en us-west1 / central1 / east1 + 30 GB disco <span class="tag ok">Always Free</span></td>
+          <td>Sin vencimiento</td>
+          <td>USD 300 en 90 días para nuevos clientes</td>
+        </tr>
+        <tr>
+          <td><strong style="color:var(--azure);">Azure</strong></td>
+          <td>750 h/mes de B1s + 64 GB disco SSD</td>
+          <td>12 meses</td>
+          <td>USD 200 en 30 días · <strong>Azure for Students: USD 100 sin tarjeta</strong></td>
+        </tr>
+        <tr>
+          <td><strong style="color:var(--oracle);">Oracle</strong></td>
+          <td>2 OCPU + 12 GB RAM en Ampere A1 · 2 VMs AMD micro · 200 GB storage · 10 TB egress <span class="tag ok">Always Free</span></td>
+          <td>Sin vencimiento</td>
+          <td>USD 300 en 30 días de trial</td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="key-quote" style="margin-top: 30px;">Para un estudiante, <strong>Oracle</strong> y <strong>GCP</strong> son la mejor opción porque no expiran. AWS y Azure cortan a los 12 meses.</p>
+  </section>
+
+  <!-- 9. Fortalezas y debilidades - parte 1 -->
+  <section class="slide">
+    <h2><span class="eyebrow">08 · Análisis comparativo</span>Fortalezas y debilidades · AWS y GCP</h2>
+    <div class="grid-2">
+      <div class="card aws">
+        <div class="logo">AWS EC2</div>
+        <h3 style="color: var(--ok); margin-top: 6px;">Fortalezas</h3>
+        <p style="font-size: 14px; margin-bottom: 12px;">
+          <strong>+</strong> 34 regiones y 108 zonas de disponibilidad (líder mundial).<br>
+          <strong>+</strong> Más de 200 servicios integrados en el mismo ecosistema.<br>
+          <strong>+</strong> Documentación exhaustiva y comunidad activa.<br>
+          <strong>+</strong> Certificaciones profesionales muy valoradas en el mercado laboral.<br>
+          <strong>+</strong> Descuentos Spot de hasta el 90% para cargas tolerantes a fallos.
+        </p>
+        <h3 style="color: var(--warn);">Debilidades</h3>
+        <p style="font-size: 14px;">
+          <strong>–</strong> Consola con curva de aprendizaje pronunciada.<br>
+          <strong>–</strong> Costos ocultos en tráfico saliente (~USD 0,09/GB).<br>
+          <strong>–</strong> Free tier expira a los 12 meses (cuentas viejas) o se agota el crédito.<br>
+          <strong>–</strong> Facturación difícil de predecir sin herramientas adicionales.
+        </p>
+      </div>
+      <div class="card gcp">
+        <div class="logo">GOOGLE COMPUTE ENGINE</div>
+        <h3 style="color: var(--ok); margin-top: 6px;">Fortalezas</h3>
+        <p style="font-size: 14px; margin-bottom: 12px;">
+          <strong>+</strong> Descuentos automáticos por uso sostenido (hasta 30%) sin contratar nada.<br>
+          <strong>+</strong> Red interna de fibra propia, latencia baja entre regiones.<br>
+          <strong>+</strong> Instancia e2-micro gratis <em>sin vencimiento</em>.<br>
+          <strong>+</strong> Facturación por segundo desde el primer minuto.<br>
+          <strong>+</strong> Interfaz más limpia que AWS.
+        </p>
+        <h3 style="color: var(--warn);">Debilidades</h3>
+        <p style="font-size: 14px;">
+          <strong>–</strong> Menos regiones (~40) que AWS y Azure.<br>
+          <strong>–</strong> Catálogo de servicios más reducido.<br>
+          <strong>–</strong> El free tier solo aplica en 3 regiones específicas.<br>
+          <strong>–</strong> Soporte en español limitado.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 9b. Fortalezas y debilidades - parte 2 -->
+  <section class="slide">
+    <h2><span class="eyebrow">08 · Análisis comparativo</span>Fortalezas y debilidades · Azure y Oracle</h2>
+    <div class="grid-2">
+      <div class="card azure">
+        <div class="logo">AZURE VIRTUAL MACHINES</div>
+        <h3 style="color: var(--ok); margin-top: 6px;">Fortalezas</h3>
+        <p style="font-size: 14px; margin-bottom: 12px;">
+          <strong>+</strong> Integración nativa con Active Directory y Windows Server.<br>
+          <strong>+</strong> Programa <strong>Azure for Students</strong>: USD 100 sin tarjeta de crédito.<br>
+          <strong>+</strong> Licencias híbridas con descuentos si ya se pagan on-premise.<br>
+          <strong>+</strong> 60+ regiones, la mayor cobertura geográfica.<br>
+          <strong>+</strong> Soporte empresarial fuerte en Argentina y LATAM.
+        </p>
+        <h3 style="color: var(--warn);">Debilidades</h3>
+        <p style="font-size: 14px;">
+          <strong>–</strong> Portal ocasionalmente lento y con cambios frecuentes de UI.<br>
+          <strong>–</strong> Free tier corto (12 meses) y USD 200 solo válidos 30 días.<br>
+          <strong>–</strong> Nomenclatura de series (B, D, E, F...) confusa para principiantes.<br>
+          <strong>–</strong> Precios equivalentes o superiores a AWS en la mayoría de instancias.
+        </p>
+      </div>
+      <div class="card oracle">
+        <div class="logo">ORACLE CLOUD INFRASTRUCTURE</div>
+        <h3 style="color: var(--ok); margin-top: 6px;">Fortalezas</h3>
+        <p style="font-size: 14px; margin-bottom: 12px;">
+          <strong>+</strong> Free tier más generoso del mercado, <em>sin vencimiento</em>.<br>
+          <strong>+</strong> 10 TB mensuales de egress incluidos (AWS cobra ~USD 900 por lo mismo).<br>
+          <strong>+</strong> Precios competitivos en cargas empresariales y bases Oracle.<br>
+          <strong>+</strong> Autonomous Database gratuita hasta 20 GB.<br>
+          <strong>+</strong> Buena performance en instancias ARM Ampere.
+        </p>
+        <h3 style="color: var(--warn);">Debilidades</h3>
+        <p style="font-size: 14px;">
+          <strong>–</strong> Menos servicios que AWS, GCP y Azure.<br>
+          <strong>–</strong> Escasez de capacidad ARM en varias regiones (a veces no deja crear la VM).<br>
+          <strong>–</strong> Documentación menos madura, ejemplos más escasos.<br>
+          <strong>–</strong> Reclama capacidad si la instancia queda inactiva mucho tiempo.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 10. Caso práctico intro -->
+  <section class="slide">
+    <h2><span class="eyebrow">09 · Caso práctico</span>Levantar un servidor web desde cero</h2>
+    <p class="key-quote"><strong>Objetivo:</strong> desplegar una instancia Linux Ubuntu en la nube e instalar Nginx para servir una página web tradicional, todo dentro del free tier.</p>
+    <div class="diagram" style="margin-top: 40px;">
+      <div class="box"><div class="t">Paso 1</div><div class="n">Cuenta + tenancy</div></div>
+      <div class="arrow">→</div>
+      <div class="box"><div class="t">Paso 2</div><div class="n">Crear VM Ubuntu</div></div>
+      <div class="arrow">→</div>
+      <div class="box"><div class="t">Paso 3</div><div class="n">Abrir puerto 80</div></div>
+      <div class="arrow">→</div>
+      <div class="box"><div class="t">Paso 4</div><div class="n">SSH + instalar Nginx</div></div>
+      <div class="arrow">→</div>
+      <div class="box"><div class="t">Paso 5</div><div class="n">Servir HTML</div></div>
+    </div>
+    <p style="margin-top:30px;">Elegimos <strong>Oracle Cloud Always Free</strong> porque no expira. El procedimiento es equivalente en AWS y GCP; cambian los nombres del panel y las reglas de firewall.</p>
+  </section>
+
+  <!-- 11. Caso práctico - comandos -->
+  <section class="slide">
+    <h2><span class="eyebrow">09.1 · Caso práctico</span>Configurar la VM y desplegar la web</h2>
+    <p>Con la instancia Ubuntu 22.04 creada, la IP pública asignada y el puerto 80 abierto en la Security List, nos conectamos por SSH:</p>
+<pre><span class="cmt"># Conexión SSH desde nuestra máquina local</span>
+<span class="cmd">ssh</span> -i clave_privada.key ubuntu@<span class="str">&lt;IP_PUBLICA&gt;</span>
+
+<span class="cmt"># Actualizar el sistema e instalar Nginx</span>
+<span class="cmd">sudo</span> apt update &amp;&amp; <span class="cmd">sudo</span> apt upgrade -y
+<span class="cmd">sudo</span> apt install nginx -y
+
+<span class="cmt"># Abrir el puerto 80 en el firewall interno de Ubuntu</span>
+<span class="cmd">sudo</span> iptables -I INPUT 6 -m state --state NEW -p tcp --dport 80 -j ACCEPT
+<span class="cmd">sudo</span> netfilter-persistent save
+
+<span class="cmt"># Reemplazar la página por defecto por nuestra web</span>
+<span class="cmd">sudo</span> nano /var/www/html/index.html
+
+<span class="cmt"># Verificar que Nginx esté corriendo</span>
+<span class="cmd">sudo</span> systemctl status nginx</pre>
+    <p style="margin-top: 20px;">Abrimos el navegador con la IP pública y ya tenemos la web sirviendo. Tiempo total: <strong>menos de 15 minutos</strong>.</p>
+  </section>
+
+  <!-- 12. Consideraciones -->
+  <section class="slide">
+    <h2><span class="eyebrow">10 · Cosas a tener en cuenta</span>Pros y contras del caso práctico</h2>
+    <div class="two-col pro-con">
+      <div class="col pro">
+        <h3>Ventajas</h3>
+        <ul>
+          <li>Cero costo si se respeta el free tier.</li>
+          <li>Ambiente reproducible: se puede clonar la VM o usarla como plantilla.</li>
+          <li>La VM se apaga y se prende cuando se necesita, sin perder configuración.</li>
+          <li>Se puede escalar vertical (más CPU/RAM) u horizontal (más VMs) sin cambiar el código.</li>
+          <li>Excelente para practicar Linux, redes y despliegue de aplicaciones reales.</li>
+        </ul>
+      </div>
+      <div class="col con">
+        <h3>Limitaciones</h3>
+        <ul>
+          <li>El free tier tiene cupos: si nos pasamos empieza a cobrar automáticamente.</li>
+          <li>El tráfico saliente (egress) suele ser lo que más se paga fuera del compute.</li>
+          <li>Requiere tarjeta de crédito para verificar la cuenta (menos en Azure for Students).</li>
+          <li>La VM Ampere A1 usa arquitectura ARM: algunas apps no tienen binarios nativos.</li>
+          <li>El proveedor puede reclamar capacidad si la VM está inactiva mucho tiempo (Oracle).</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 13. Conclusión -->
+  <section class="slide">
+    <h2><span class="eyebrow">11 · Conclusiones</span>Qué nos llevamos</h2>
+    <ul>
+      <li>El modelo <strong>IaaS</strong> convirtió al servidor en un objeto virtual, replicable y trasladable. Ya casi ningún proyecto nace en un servidor físico propio.</li>
+      <li>Los cuatro proveedores son técnicamente equivalentes para levantar una web. La diferencia real está en <strong>costo</strong>, <strong>ecosistema</strong> y <strong>free tier</strong>.</li>
+      <li>Para un estudiante o proyecto personal, la mejor combinación es <strong>Oracle Cloud (Always Free)</strong> como servidor principal y <strong>GCP e2-micro</strong> como respaldo.</li>
+      <li>Para empresas medianas o grandes, la elección depende del ecosistema ya adoptado: si usan Microsoft 365 y AD, Azure encaja; si necesitan la mayor variedad de servicios, AWS sigue liderando.</li>
+      <li>Levantar un servidor web en la nube deja de ser un tema de fierros y pasa a ser un tema de <strong>configuración, seguridad y monitoreo</strong>.</li>
+    </ul>
+  </section>
+
+  <!-- 14. Cierre -->
+  <section class="slide final">
+    <h1>Gracias</h1>
+    <p>Preguntas, comentarios y a la ronda.</p>
+    <div style="margin-top: 60px; color: var(--dim); font-size: 14px;">
+      Equipo N°1 · Máquinas Virtuales (IaaS) · ILM 2026
+    </div>
+  </section>
+
+</div>
+
+<div class="counter"><span id="cur">1</span> / <span id="tot">14</span></div>
+<div class="nav">
+  <button onclick="go(-1)">←</button>
+  <button onclick="go(1)">→</button>
+</div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const total = slides.length;
+  let idx = 0;
+  document.getElementById('tot').textContent = total;
+
+  // Mapa slide index (0-based) → número de integrante
+  const intMap = [
+    1,1,1,1,  // slides 1-4  → Integrante 1
+    2,2,2,2,  // slides 5-8  → Integrante 2
+    3,3,3,    // slides 9-11 → Integrante 3
+    4,4,4,4   // slides 12-15 → Integrante 4
+  ];
+
+  const bar = document.getElementById('progress');
+
+  function show(i) {
+    slides.forEach(s => s.classList.remove('active'));
+    slides[i].classList.add('active');
+    document.getElementById('cur').textContent = i + 1;
+    bar.style.width = ((i + 1) / total * 100) + '%';
+    const n = intMap[i];
+    bar.className = 'progress int-' + n;
+  }
+  function go(dir) {
+    idx = Math.max(0, Math.min(total - 1, idx + dir));
+    show(idx);
+  }
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') go(1);
+    else if (e.key === 'ArrowLeft' || e.key === 'PageUp') go(-1);
+    else if (e.key === 'Home') { idx = 0; show(idx); }
+    else if (e.key === 'End') { idx = total - 1; show(idx); }
+  });
+  show(0);
+</script>
+
+</body>
+</html>
